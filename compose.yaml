@@ -1,0 +1,66 @@
+# Copyright (c) 2026 javalchemist
+#
+# Licensed under the Non-AI Apache 2.0 License 
+
+services:
+  db_ora:
+    image: gvenzl/oracle-free:23-slim
+    container_name: db-fb1412-platform   # container with database
+    restart: unless-stopped              # restart if DB stops unexpectedly
+    environment: 
+# user/passwords required on creation of container; changed it latter
+        ORACLE_PASSWORD: sysAdmin
+        APP_USER: appUser               
+        APP_USER_PASSWORD: userPass
+    ports:
+      - "1521:1521"                      # host : container
+    volumes:
+      - type: volume
+        source: db-data
+        target: /opt/oracle/oradata
+    networks:
+      - forms14-platform
+
+  forms_builder:
+    build:
+      context: .                          
+      dockerfile: formsBuilder1412/Dockerfile  # folder with dockerfile
+      args:
+        DISPLAY: ${DISPLAY}                     # ARG : image will use it
+    image: local/fb1412:v1
+    container_name: fb_runner-fb1412-platform
+    depends_on:
+      - db_ora
+    environment:
+      DISPLAY: ${DISPLAY}                  # transfer from host to container
+    networks:
+      - forms14-platform
+    volumes:
+      - type: bind
+        source: /tmp/.X11-unix            # required for GUI on host
+        target: /tmp/.X11-unix
+      - type: volume
+        source: fb1412-installation
+        target: /oracle/Oracle
+      - type: bind
+        source: ./external_files          # sharing Oracle Forms files with host
+        target: /oracle/external_files
+        read_only: false
+    user: oracle:oracle
+    working_dir: /oracle
+      
+networks:
+  forms14-platform:
+    driver: bridge
+
+volumes:
+  db-data:
+    name: "db23-forms1412-platform"
+    labels:
+      com.example.description: "Oracle database 23 serving Forms Builder 14.1.2"
+      com.example.department: "Forms Builder 14.1.2 platform for Linux"
+  fb1412-installation:
+    name: "forms1412-installation"
+    labels:
+      com.example.description: "Forms Builder 14.1.2.0 installation"
+      com.example.department: "Forms Builder 14.1.2 platform for Linux"
